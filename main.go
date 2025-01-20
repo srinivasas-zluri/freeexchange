@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -26,7 +27,7 @@ func loadExchangeRates() error {
 	return decoder.Decode(&exchangeRates)
 }
 
-// Handler to fetch exchange rate for the given date
+// Handler to fetch exchange rate for the given date and currency
 func getExchangeRate(w http.ResponseWriter, r *http.Request) {
 	// Rate limiting check
 	if !limiter.Allow() {
@@ -34,17 +35,45 @@ func getExchangeRate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Extract the date from the URL path
-	date := r.URL.Path[len("/"):] // Strip the leading slash
+	// Extract the date and currency code from the URL path
+	parts := strings.Split(r.URL.Path[1:], "/")
+	if len(parts) < 1 || len(parts) > 2 {
+		http.Error(w, "Invalid URL format. Use /[date]/[currency] or /[date]", http.StatusBadRequest)
+		return
+	}
 
-	// Fetch exchange rate for the requested date
+	date := parts[0]
+	var currency string
+	if len(parts) == 2 {
+		currency = strings.ToUpper(parts[1]) // Capitalize currency code
+	}
+
+	// Fetch exchange rates for the requested date
 	rateData, exists := exchangeRates[date]
 	if !exists {
 		http.Error(w, "Exchange rates not found for the specified date", http.StatusNotFound)
 		return
 	}
 
-	// Respond with JSON of the exchange rates for that date
+	// If currency is specified, return just that currency's exchange rate
+	if currency != "" {
+		rate, exists := rateData[currency]
+		if !exists {
+			http.Error(w, "Currency not found for the specified date", http.StatusNotFound)
+			return
+		}
+		// Respond with the exchange rate for the specific currency
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]float64{
+			currency: rate,
+		}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// If no currency is specified, return all the exchange rates for the date
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(rateData); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
