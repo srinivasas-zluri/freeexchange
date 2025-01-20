@@ -30,10 +30,10 @@ func loadExchangeRates() error {
 // Handler to fetch exchange rate for the given date and currency
 func getExchangeRate(w http.ResponseWriter, r *http.Request) {
 	// Rate limiting check
-	if !limiter.Allow() {
-		http.Error(w, "Too many requests. Please try again later.", http.StatusTooManyRequests)
-		return
-	}
+	// if !limiter.Allow() {
+	// 	http.Error(w, "Too many requests. Please try again later.", http.StatusTooManyRequests)
+	// 	return
+	// }
 
 	// Extract the date and currency code from the URL path
 	parts := strings.Split(r.URL.Path[1:], "/")
