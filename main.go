@@ -27,9 +27,27 @@ func loadExchangeRates() error {
 	return decoder.Decode(&exchangeRates)
 }
 
+// Middleware to handle CORS
+func handleCORS(w http.ResponseWriter, r *http.Request) {
+	// Allow all origins
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	// Allow specific methods (GET, POST, etc.)
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	// Allow specific headers
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+}
+
 // Handler to fetch exchange rate for the given date and currency
 func getExchangeRate(w http.ResponseWriter, r *http.Request) {
-	// Rate limiting check
+	// Handle CORS for the preflight request (OPTIONS)
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	// Apply CORS headers
+	handleCORS(w, r)
+
+	// Rate limiting check (uncomment if needed)
 	// if !limiter.Allow() {
 	// 	http.Error(w, "Too many requests. Please try again later.", http.StatusTooManyRequests)
 	// 	return
@@ -88,7 +106,6 @@ func main() {
 	}
 
 	port := os.Getenv("PORT")
- 
 	if port == "" {
 		port = "8080"
 	}
